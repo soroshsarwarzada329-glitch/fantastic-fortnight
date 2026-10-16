@@ -1,0 +1,149 @@
+name: Tests master
+
+on:
+  # This avoids having duplicate builds for a pull request
+  push:
+    branches:
+      - master
+      - "*-maintenance"
+  pull_request:
+    branches:
+      - master
+      - "*-maintenance"
+
+jobs:
+  ############################################################################
+  # Lint jobs
+  ############################################################################
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "lts/*"
+          cache: "npm"
+          cache-dependency-path: "**/package-lock.json"
+      - name: Install node dependencies
+        run: make frontend/node_modules
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          # pylint==2.11.1 (pinned in tox.ini) will only run with python <=3.10
+          python-version: "3.10"
+          cache: "pip"
+          cache-dependency-path: "**/setup.cfg"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit|${{ env.pythonLocation }}|${{ hashFiles('.pre-commit-config.yaml') }}
+      - name: Install python dependencies
+        id: pip
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install tox pre-commit
+          python -m pip freeze --local
+      - name: Run pylint
+        run: tox -e lint
+      - name: Run pre-commit
+        # run pre-commit check even if pylint check fails
+        if: steps.pip.outcome == 'success'
+        run: pre-commit run --show-diff-on-failure --color=always --all-files
+
+  ############################################################################
+  # Node tests
+  ############################################################################
+  node:
+    name: ${{ matrix.os}} node-${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["lts/*"]
+        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
+        include:
+          - node: "current"
+            os: "ubuntu-latest"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: "npm"
+          cache-dependency-path: "**/package-lock.json"
+      - name: Build frontend
+        run: make
+      - name: Typecheck and run frontend tests
+        run: make test-js
+
+  ############################################################################
+  # Python tests
+  ############################################################################
+  python-tests:
+    name: ${{ matrix.os }} py${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest"]
+        python: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        include:
+          - python: "3.8"
+            os: "macos-latest"
+          - python: "3.14"
+            os: "macos-latest"
+          - python: "3.8"
+            os: "windows-latest"
+          - python: "3.14"
+            os: "windows-latest"
+
+          - python: "3.14"
+            install-imagemagick: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+          cache: "pip"
+          cache-dependency-path: "**/setup.cfg"
+      - name: Install macOS system dependencies
+        if: startsWith(runner.os, 'macos') && matrix.install-imagemagick
+        run: brew install imagemagick ffmpeg
+
+      - name: Install Windows system dependencies
+        if: startsWith(runner.os, 'windows') && matrix.install-imagemagick
+        shell: pwsh
+        run: |
+          choco install --no-progress --timeout 600 imagemagick.app ffmpeg
+          # The imagemagick.app package, for whatever reason, installs
+          # magick.exe into a directory which is not in the default
+          # search path. Currently, it seems to get installed in a
+          # directory named something like:
+          #
+          # "C:\Program Files\ImageMagick-7.1.0-Q16-HDRI"
+          $ImDirs = (
+            Get-ChildItem $env:ProgramFiles 'ImageMagick*' -Directory
+            | Select-Object -ExpandProperty FullName
+          )
+          if ($ImDirs.Length -eq 0) { Throw "Could not find path to ImageMagick" }
+          $ImDirs | Out-File $env:GITHUB_PATH utf8 -Append
+          $ImDirs | % { "::notice title=ImageMagick::ImageMagick installed at $_" }
+        continue-on-error: true
+
+      - name: Install python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install tox tox-gh-actions coverage[toml]
+      - name: Run python tests
+        run: tox
+      - name: Generate coverage.xml
+        shell: bash
+        run: |
+          coverage combine --append || true
+          coverage xml
+      - name: Publish coverage data to codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

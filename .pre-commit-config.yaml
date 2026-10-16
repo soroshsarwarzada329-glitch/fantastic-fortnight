@@ -1,0 +1,29 @@
+repos:
+  - repo: https://github.com/ambv/black
+    # NB: Using any black past 23.12.1 results in conflict between
+    # black and reorder-python-imports.
+    # See https://github.com/psf/black/issues/4175
+    rev: "23.12.1"
+    hooks:
+      - id: black
+  - repo: https://github.com/asottile/reorder_python_imports
+    rev: "v3.16.0"
+    hooks:
+      - id: reorder-python-imports
+  - repo: https://github.com/pycqa/flake8
+    rev: "7.3.0"
+    hooks:
+      - id: flake8
+        language_version: python3
+  - repo: local
+    hooks:
+      - id: eslint
+        name: eslint
+        language: unsupported_script
+        entry: ./frontend/node_modules/eslint/bin/eslint.js --fix --max-warnings 0
+        files: \.(ts|tsx)$
+      - id: prettier
+        name: prettier
+        language: unsupported_script
+        entry: ./frontend/node_modules/prettier/bin-prettier.js --write --list-different
+        files: \.(ts|tsx|js|less|ya?ml|md)$
