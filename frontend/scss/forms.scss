@@ -1,0 +1,162 @@
+div.field-row {
+  margin-bottom: 1rem;
+}
+
+dl.field {
+  margin: 0;
+
+  dt {
+    font-weight: bold;
+    font-size: 13px;
+    display: inline-block;
+    background: $tab-header-background;
+    color: $tab-header-color;
+    padding: 2px 8px;
+  }
+}
+
+.system-fields {
+  dl.field {
+    dt {
+      color: $toggle-group-color;
+      font-style: italic;
+    }
+  }
+}
+
+.flow-widget {
+  background: $flow-panel-background;
+  border: 1px solid $panel-border-color;
+  padding: 10px;
+
+  div.add-flow-block {
+    background: $background-taint;
+    border: 1px solid $panel-border-color;
+    padding: 5px 10px;
+
+    label {
+      padding-right: 10px;
+    }
+  }
+}
+
+div.flow-block {
+  background: $flow-block-panel-background;
+
+  & + div.flow-block {
+    border-top: 1px solid $panel-border-color;
+    padding-top: 10px;
+  }
+
+  div.field-row {
+    margin-bottom: 0;
+  }
+
+  h4.block-name {
+    font-size: 14px;
+    padding-top: 3px;
+  }
+
+  dl {
+    margin: 10px 0;
+  }
+}
+
+.validation-block {
+  margin-top: 5px;
+  padding: 5px 10px;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.validation-block-error {
+  color: $danger;
+}
+
+.help-text {
+  background: $flow-panel-background;
+  border: 1px solid $input-group-addon-border-color;
+  padding: 5px 10px;
+  border-bottom: none;
+  font-size: 13px;
+}
+
+.checkboxes-widget {
+  border: 1px solid $input-group-addon-border-color;
+  padding: 5px 10px;
+}
+
+.text-widget {
+  display: grid;
+  contain: layout;
+
+  &__replica,
+  &__textarea {
+    grid-area: 1 / 1 / 2 / 2; // Place them on top of each other
+
+    // Ensure they get identical styling
+    @extend .form-control;
+    white-space: pre-wrap;    // How textarea wraps
+  }
+
+  &__replica {
+    visibility: hidden;
+    overflow: hidden; // never any scrollbars
+
+    &:after {
+        // adding an extra space prevents jank when text ends with newline
+        content: " ";
+    }
+  }
+
+  &__textarea {
+    resize: none;
+    &--resizeable {
+      resize: vertical;
+    }
+    &--autosized {
+      overflow: hidden;         // hide scrollbars
+    }
+  }
+}
+
+/* fake types */
+.info-widget {
+  border: 1px solid $panel-border-color;
+  color: $header-taint;
+  margin: 0;
+  padding: 5px 10px;
+
+  p {
+    margin: 0;
+  }
+}
+
+.spacing-widget {
+  height: 30px;
+}
+
+// Visually distinguish between checked and unchecked indeterminate checkbox
+// (Checkboxes, as far as the browser is concerned only have three states.
+// Indeterminate checkboxes are not :checked, but we still set the default value
+// for the field in the checked attribute and would like to be able to tell
+// the difference between those that default to true vs false.)
+.form-check-input[type="checkbox"]:indeterminate {
+    border-color: rgba(#000, 0.25);
+    background-color: scale-color(
+        $form-check-input-checked-bg-color,
+        $alpha: -70%,
+        $saturation: -30%
+    );
+    // Slash, rather than bootstrap's horizontal bar, seems more intuitive indication
+    // of indeterminate state.
+    background-image:  escape-svg(url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><path fill='none' stroke='#{$form-check-input-indeterminate-color}' stroke-linecap='round' stroke-width='3' d='M6 6 l8 8'/></svg>"));
+
+    &.form-check-input--default-true {
+        background-color: scale-color(
+            $form-check-input-checked-bg-color,
+            $alpha: -25%
+        );
+        border-color: $form-check-input-checked-border-color;
+    }
+}
